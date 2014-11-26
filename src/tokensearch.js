@@ -50,7 +50,7 @@
 			
 			this.remove = function() {
 				callbacks.remove(self);
-			}
+			};
 			
 			this.draw = function(anchor) {
 				var tokenNode = anchor.addClass('ts-token');
@@ -94,7 +94,7 @@
 		}
 	};
 
-	var tokensearch = function(anchor, settings) {
+	var TokenSearch = function(anchor, settings) {
 
 		var model = {
 			tokens: [],
@@ -272,7 +272,7 @@
 	};
 
 	$.fn.tokensearch = function(settings) {
-		return new tokensearch(this, settings);
+		return new TokenSearch(this, settings);
 	};
 
 	$.fn.tokensearch.extend = function(token) {

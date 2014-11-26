@@ -231,7 +231,7 @@
 		}
 
 		function createToken(tokendef) {
-			return new tokens[tokendef](tokendef, tokencallbacks);
+			return new tokens[tokendef.type](tokendef, tokencallbacks);
 		}
 		
 		function selectedSuggestion() {

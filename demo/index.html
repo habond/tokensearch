@@ -1,31 +1,45 @@
 <html>
-	<head>
-		<title>Sample</title>
-		<link rel="stylesheet" type="text/css" href="../src/tokensearch.css"></link>
-		<script type="text/javascript" src="jquery-1.11.1.js"></script>
-		<script type="text/javascript" src="../src/tokensearch.js"></script>
-	</head>
-	<body>
-		<div id="tokensearch"></div>
-		<button id="showjson">Create JSON</button>
-		<div id="jsonresult"></div>
-		<script type="text/javascript">
-			$(document).ready(function(){
-				var x = $('#tokensearch').tokensearch({
-					tokenDefs:[
-						{id:'size',type:'simple',label:'Size'},
-						{id:'color',type:'simple',label:'Colour'},
-						{id:'cut',type:'simple',label:'Cut'},
-						{id:'custom',type:'text',label:'Custom'}
-					]
-				});
-				
-				$('#showjson').click(function(){
-					var res = x.getValue();
-					var txt = JSON.stringify(res);
-					$('#jsonresult').text(txt);
-				});
+
+<head>
+	<title>Sample</title>
+	<link rel="stylesheet" type="text/css" href="../src/tokensearch.css"></link>
+	<script type="text/javascript" src="jquery-1.11.1.js"></script>
+	<script type="text/javascript" src="../src/tokensearch.js"></script>
+</head>
+
+<body>
+	<div id="tokensearch"></div>
+	<button id="showjson">Create JSON</button>
+	<div id="jsonresult"></div>
+	<script type="text/javascript">
+		$(document).ready(function() {
+			var x = $('#tokensearch').tokensearch({
+				tokenDefs: [{
+					id: 'size',
+					type: 'simple',
+					label: 'Size'
+				}, {
+					id: 'color',
+					type: 'simple',
+					label: 'Colour'
+				}, {
+					id: 'cut',
+					type: 'simple',
+					label: 'Cut'
+				}, {
+					id: 'custom',
+					type: 'text',
+					label: 'Custom'
+				}]
 			});
-		</script>
-	</body>
+
+			$('#showjson').click(function() {
+				var res = x.getValue();
+				var txt = JSON.stringify(res);
+				$('#jsonresult').text(txt);
+			});
+		});
+	</script>
+</body>
+
 </html>

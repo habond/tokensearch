@@ -5,6 +5,8 @@
 		'simple': function(settings, callbacks) {
 
 			var self = this;
+			
+			var ui = {};
 
 			this.getId = function() {
 				return settings.id;
@@ -15,23 +17,30 @@
 			};
 
 			this.remove = function() {
-				callbacks.remove(self);
+				callbacks.removeToken(self);
 			};
 
 			this.draw = function(anchor) {
-				var tokenNode = anchor.addClass('ts-token');
+				var tokenNode = ui.tokenNode = anchor.addClass('ts-token');
 				var tokenLabel = $('<div>' + settings['label'] + '</div>').addClass('ts-tokenlabel');
-				var tokenClose = $('<div>×</div>').addClass('ts-close');
+				var tokenClose = $('<div>\u00D7</div>').addClass('ts-close');
 
 				tokenNode
 					.append(tokenLabel)
 					.append(tokenClose);
 
 				tokenClose.on('click', this.remove);
+				tokenNode.on('click', function(){
+					callbacks.selectToken(self);
+				});
 			};
 
 			this.activate = function() {
+				ui.tokenNode.addClass('ts-token-sel');
+			};
 
+			this.deactivate = function() {
+				ui.tokenNode.removeClass('ts-token-sel');
 			};
 
 		},
@@ -50,19 +59,20 @@
 			};
 
 			this.remove = function() {
-				callbacks.remove(self);
+				callbacks.removeToken(self);
 			};
 
 			this.draw = function(anchor) {
-				var tokenNode = anchor.addClass('ts-token');
+				var tokenNode = ui.tokenNode = anchor.addClass('ts-token');
 				var tokenLabel = $('<div>' + settings['label'] + '</div>').addClass('ts-tokenlabel');
 				var tokenInput = ui.input = $('<input/>').css('display', 'none');
 				var tokenValueLabel = ui.label = $('<div/>').addClass('ts-tokenlabel');
-				var tokenClose = $('<div>×</div>').addClass('ts-close');
+				var tokenClose = $('<div>\u00D7</div>').addClass('ts-close');
 
-				tokenNode.on('click', this.activate);
+				tokenNode.on('click', function(){
+					callbacks.selectToken(self);
+				});
 				tokenClose.on('click', this.remove);
-				tokenInput.on('blur', this.deactivate);
 
 				tokenNode
 					.append(tokenLabel)
@@ -72,20 +82,82 @@
 			};
 
 			this.activate = function() {
+				ui.tokenNode.addClass('ts-token-sel');
 				ui.input.val(ui.label.text());
 				ui.label.hide();
 				ui.input.show().focus();
 			};
 
 			this.deactivate = function() {
+				ui.tokenNode.removeClass('ts-token-sel');
 				ui.label.text(ui.input.val());
 				ui.label.show();
 				ui.input.hide();
 			};
 
 		},
-		'subsuggest': function(settings, callbacks) {
-			// TODO: Implement Me
+		'select': function(settings, callbacks) {
+
+			var self = this;
+
+			var ui = {};
+
+			this.getId = function() {
+				return settings.id;
+			};
+
+			this.getValue = function() {
+				var opt = ui.select.children().filter(':selected');
+				return {
+					text: opt.text(),
+					val: opt.val()
+				};
+			};
+
+			this.remove = function() {
+				callbacks.removeToken(self);
+			};
+
+			this.draw = function(anchor) {
+				var tokenNode = ui.tokenNode = anchor.addClass('ts-token');
+				var tokenLabel = $('<div>' + settings['label'] + '</div>').addClass('ts-tokenlabel');
+				var tokenSelect = ui.select = $('<select/>').css('display', 'none');
+				var tokenValueLabel = ui.label = $('<div/>').addClass('ts-tokenlabel');
+				var tokenClose = $('<div>\u00D7</div>').addClass('ts-close');
+
+				$(settings.options).each(function(ind, opt){
+					ui.select.append($('<option value="' + opt.value + '">' + opt.text + '</option>'));
+				});
+
+				tokenNode.on('click', function(){
+					callbacks.selectToken(self);
+				});
+				tokenClose.on('click', this.remove);
+				tokenSelect.on('click', function(e){
+					e.stopPropagation();
+				});
+
+				tokenNode
+					.append(tokenLabel)
+					.append(tokenValueLabel)
+					.append(tokenSelect)
+					.append(tokenClose);
+			};
+
+			this.activate = function() {
+				ui.tokenNode.addClass('ts-token-sel');
+				ui.label.hide();
+				ui.select.show();
+				ui.select.trigger('click');
+			};
+
+			this.deactivate = function() {
+				ui.tokenNode.removeClass('ts-token-sel');
+				ui.label.text(self.getValue().text);
+				ui.label.show();
+				ui.select.hide();
+			};
+
 		}
 	};
 
@@ -110,11 +182,12 @@
 			tokens: $('<div/>').addClass('ts-tokenlist'),
 			inputs: $('<div/>').addClass('ts-inputwrapper'),
 			input: $('<input/>').addClass('ts-input'),
-			suggestions: $('<ul/>').addClass('ts-suggestlist')
+			suggestions: $('<ul/>').addClass('ts-suggestlist').hide()
 		};
 
 		var tokencallbacks = {
-			remove: removeToken
+			removeToken: removeToken,
+			selectToken: selectTokenByObject
 		};
 
 		function init() {
@@ -135,12 +208,19 @@
 		function attachEvents() {
 			ui.wrapper
 				.on('click', function(e) {
-					if (util.isEventTarget(e, ui.wrapper))
-						ui.input.focus();
+					if (util.isEventTarget(e, ui.wrapper) || util.isEventTarget(e, ui.input))
+						selectInput();
 				})
 				.on('keyup', function(e) {
-					if (event.which === 38 || event.which === 40)
-						return; // Prevent Up and Down triggering suggestion
+					switch(e.which) {
+						case 9: // Prevent shift changing focus
+							e.preventDefault();
+							return;
+						case 38: // Prevent Up triggering suggestions
+							return;
+						case 40: // Prevent Down triggering suggestions
+							return;
+					}
 					model.input = ui.input.val();
 					generateSuggestions();
 				})
@@ -151,6 +231,10 @@
 								hasMoreTokens() &&
 								util.isEventTarget(e, ui.input))
 								removeLastToken();
+							break;
+						case 9: // Tab
+							e.preventDefault();
+							tabToken(e.shiftKey ? -1 : 1);
 							break;
 						case 13: // Enter
 							if (selectedSuggestion())
@@ -166,6 +250,43 @@
 							break;
 					}
 				});
+		}
+		
+		function tabToken(increment) {
+			var selectedToken = model.selectedToken == -1 ? model.tokens.length : model.selectedToken;
+			var nextSelectedToken = selectedToken + increment;
+			if(nextSelectedToken < 0)
+				return; // Out of bounds
+			if(nextSelectedToken >= model.tokens.length) {
+				selectInput();
+				return;
+			}
+			selectTokenByIndex(nextSelectedToken);
+		}
+		
+		function selectTokenByIndex(index) {
+			if(model.selectedToken >= 0) {
+				var oldToken = model.tokens[model.selectedToken];
+				oldToken.deactivate();
+			}
+			if(index >= model.tokens.length) {
+				model.selectedToken = -1;
+				return;
+			}
+			model.selectedToken = index; 
+			var newToken = model.tokens[model.selectedToken];
+			newToken.activate();
+			console.log(index);
+		}
+		
+		function selectTokenByObject(token) {
+			var tokenIndex = model.tokens.indexOf(token);
+			selectTokenByIndex(tokenIndex);
+		}
+
+		function selectInput() {
+			selectTokenByIndex(model.tokens.length);
+			ui.input.focus();
 		}
 
 		function generateSuggestions() {
@@ -195,6 +316,7 @@
 
 		function drawSuggestions() {
 			ui.suggestions.empty();
+			model.suggestions.length > 0 ? ui.suggestions.show() : ui.suggestions.hide();
 			$(model.suggestions).each(function(index, suggestion) {
 				var suggestionNode = $('<li>' + suggestion.label + '</li>');
 				if (index === model.selectedSuggestion)
@@ -229,7 +351,7 @@
 			var token = createToken(tokendef);
 			model.tokens.push(token);
 			drawTokens();
-			token.activate();
+			selectTokenByObject(token);
 		}
 
 		function createToken(tokendef) {
